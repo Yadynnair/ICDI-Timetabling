@@ -1,3 +1,4 @@
+# from requests import Session
 from cmath import nan
 from requests import Session, session
 import streamlit as st
@@ -143,14 +144,12 @@ if uploaded_file is not None:
         # st.write(manual_plan[s])
         # st.write([len(manual_plan[s])])
         Subjects_sessions_num[s][0] = len(manual_plan[s])
-    
-    # for s in Subjects:
-    #         st.write(Subjects_sessions_num[s])
 
     # Change session number of non format subjects
     for s in st.session_state.nonformatsubject:
         Subjects_sessions_num[s] = nonformat_vars[s]
 
+    #  Class that DIN teacher teach
     DinClasses = []
     for t in Teachers:
         for s in TSubjects:
@@ -173,13 +172,14 @@ if uploaded_file is not None:
                         st.error("วิชา{} ของอาจารย์{} สอนตรงกับวิชาอื่น โปรดเช็คข้อมูลใน sheet manual อีกครั้ง".format(s,c[0]))
                         error_counter = True
 
+    # Class not start with 888
     OutClasses = []
     for i in Students: 
         for s in OutSubjects:                               
             if df['students'].iloc[Studentindex(i),Ssubjectindex(s)] > 0 and df['students'].iloc[Studentindex(i),Ssubjectindex(s)] <= 1:
                 for k in range(Subjects_sessions_num[s][0]):
                     OutClasses.append(('outside',i,s,k))
-
+    
     Classes = DinClasses
     for c in OutClasses:
         if c not in Classes:
@@ -275,15 +275,12 @@ if uploaded_file is not None:
 
         Teacher_Avoid_Day_Penelty =pu.lpSum(i for i in Dummy)
 
-        # Student not learn in Campus or in ICDI alternatively
-
-
-
-
         # Add Objective function
         p += (Morning_Teacher_Penelty+Afternoon_Teacher_Penelty+Teacher_Avoid_Day_Penelty,"Sum_of_Total_Penalty",)
 
-        # Hard Constraint
+        
+        
+        #''' Hard Constraint '''
 
         # Teaching According to the Curriculum
         for c in Classes:
@@ -330,7 +327,38 @@ if uploaded_file is not None:
             for d in Days:
                 for c1 in teacher_plan[t]:
                     for c2 in teacher_plan[t]:                
-                        p+= (var[c1][(d,sessions[2])]+var[c2][(d,sessions[3])] <= 1)
+                        p += (var[c1][(d,sessions[2])]+var[c2][(d,sessions[3])] <= 1)
+
+        # Student not learn in Campus or in ICDI alternatively
+        # No outside class between ICDI classes for DIN students
+        for s in Dinstudents:
+            for d in Days:
+                for c3 in student_plan[s]:
+                    if c3[2][:3] == '888':
+                        for c2 in student_plan[s]:
+                            if c2 in OutClasses:
+                                for c1 in student_plan[s]:
+                                    if c1[2][:3] == '888':
+                                        for i in range(len(sessions)):
+                                            for j in range(i):
+                                                for k in range(j):
+                                                    p += (var[c1][(d,sessions[k])]+var[c2][(d,sessions[j])]+var[c3][(d,sessions[i])] <= 2)
+
+        # No ICDI class between outside classes for DIN students
+        for s in Dinstudents:
+            for d in Days:
+                for c3 in student_plan[s]:
+                    if c3 in OutClasses:
+                        for c2 in student_plan[s]:
+                            if c2[2][:3] == '888':
+                                for c1 in student_plan[s]:
+                                    if c1 in OutClasses:
+                                        for i in range(len(sessions)):
+                                            for j in range(i):
+                                                for k in range(j):
+                                                    p += (var[c1][(d,sessions[k])]+var[c2][(d,sessions[j])]+var[c3][(d,sessions[i])] <= 2)
+
+
 
         # '''Solve'''
         st.write('เมื่อเตรียมข้อมูลพร้อมแล้ว สามารถกดปุ่มด้านล่างเพื่อเริ่มสร้างตารางสอนได้เลย :sunglasses:')
